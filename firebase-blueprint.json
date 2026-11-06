@@ -1,0 +1,151 @@
+{
+  "entities": {
+    "users": {
+      "title": "User Profile",
+      "description": "User profile information for undergraduate students, faculty, and HOD administrators.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 100 },
+        "email": { "type": "string", "maxLength": 120 },
+        "role": { "type": "string", "enum": ["student", "faculty", "hod"] },
+        "department": { "type": "string", "maxLength": 80 },
+        "codeNumber": { "type": "string", "maxLength": 50 },
+        "sectionId": { "type": "string", "maxLength": 50 },
+        "semester": { "type": "number" },
+        "phone": { "type": "string", "maxLength": 25 },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "name", "email", "role", "department", "codeNumber"]
+    },
+    "attendanceRecords": {
+      "title": "Attendance Record",
+      "description": "Daily/session academic attendance record for students.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "studentId": { "type": "string", "maxLength": 128 },
+        "subjectId": { "type": "string", "maxLength": 128 },
+        "sectionId": { "type": "string", "maxLength": 128 },
+        "date": { "type": "string", "maxLength": 20 },
+        "status": { "type": "string", "enum": ["present", "absent", "late", "excused"] },
+        "markedBy": { "type": "string", "maxLength": 128 },
+        "remarks": { "type": "string", "maxLength": 200 },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "studentId", "subjectId", "sectionId", "date", "status", "markedBy"]
+    },
+    "complaints": {
+      "title": "Grievance / Complaint",
+      "description": "Student complaint or grievance ticket submitted to college administration.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "studentId": { "type": "string", "maxLength": 128 },
+        "studentName": { "type": "string", "maxLength": 100 },
+        "title": { "type": "string", "maxLength": 150 },
+        "category": { "type": "string", "maxLength": 80 },
+        "description": { "type": "string", "maxLength": 2000 },
+        "status": { "type": "string", "enum": ["open", "in_progress", "resolved"] },
+        "isAnonymous": { "type": "boolean" },
+        "resolutionNote": { "type": "string", "maxLength": 1000 },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "studentId", "category", "description", "status", "isAnonymous"]
+    },
+    "feedback": {
+      "title": "Faculty Feedback",
+      "description": "Student academic appraisal and feedback for faculty teaching.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "studentId": { "type": "string", "maxLength": 128 },
+        "facultyId": { "type": "string", "maxLength": 128 },
+        "subjectId": { "type": "string", "maxLength": 128 },
+        "ratingClarity": { "type": "number" },
+        "ratingPunctuality": { "type": "number" },
+        "ratingKnowledge": { "type": "number" },
+        "ratingFairness": { "type": "number" },
+        "comments": { "type": "string", "maxLength": 1000 },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "studentId", "facultyId", "subjectId", "comments"]
+    },
+    "announcements": {
+      "title": "Announcement",
+      "description": "College or department official academic notifications.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "title": { "type": "string", "maxLength": 200 },
+        "content": { "type": "string", "maxLength": 5000 },
+        "category": { "type": "string", "maxLength": 80 },
+        "authorId": { "type": "string", "maxLength": 128 },
+        "authorName": { "type": "string", "maxLength": 100 },
+        "isImportant": { "type": "boolean" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "title", "content", "category", "authorId", "authorName"]
+    },
+    "submissions": {
+      "title": "Assessment Submission",
+      "description": "Student submissions for continuous internal evaluations and quizzes.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "assessmentId": { "type": "string", "maxLength": 128 },
+        "studentId": { "type": "string", "maxLength": 128 },
+        "studentName": { "type": "string", "maxLength": 100 },
+        "status": { "type": "string", "enum": ["submitted", "graded", "evaluated"] },
+        "score": { "type": "number" },
+        "totalMarks": { "type": "number" },
+        "submittedAt": { "type": "string" },
+        "feedback": { "type": "string", "maxLength": 1000 }
+      },
+      "required": ["id", "assessmentId", "studentId", "status", "totalMarks", "submittedAt"]
+    },
+    "admins": {
+      "title": "Admin Role Mapping",
+      "description": "Designated administrator / HOD access mapping document.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "email": { "type": "string", "maxLength": 120 },
+        "role": { "type": "string", "maxLength": 50 },
+        "grantedAt": { "type": "string" }
+      },
+      "required": ["id", "email", "role"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "users",
+      "description": "User profiles for college students, faculty, and administrators."
+    },
+    "/attendanceRecords/{recordId}": {
+      "schema": "attendanceRecords",
+      "description": "Attendance history for course lectures and lab practicals."
+    },
+    "/complaints/{complaintId}": {
+      "schema": "complaints",
+      "description": "Grievance submissions and administrative resolution tickets."
+    },
+    "/feedback/{feedbackId}": {
+      "schema": "feedback",
+      "description": "Student evaluations and course feedback for instructors."
+    },
+    "/announcements/{announcementId}": {
+      "schema": "announcements",
+      "description": "Departmental circulars, notices, and examination alerts."
+    },
+    "/submissions/{submissionId}": {
+      "schema": "submissions",
+      "description": "Assessment question submissions and student grading records."
+    },
+    "/admins/{adminId}": {
+      "schema": "admins",
+      "description": "HOD and administrator authorization directory."
+    }
+  }
+}

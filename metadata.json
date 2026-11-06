@@ -1,0 +1,6 @@
+{
+  "name": "Smart Academic Platform",
+  "description": "Comprehensive college academic management system for Students, Faculty, and HODs with timetable generation, attendance, assessments, and AI academic assistant.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

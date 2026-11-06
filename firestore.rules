@@ -1,0 +1,162 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 1. Global Safety Net: default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerified() {
+      return isSignedIn() && (
+        request.auth.token.email_verified == true ||
+        request.auth.token.firebase.sign_in_provider == 'google.com'
+      );
+    }
+
+    function isOwner(userId) {
+      return isVerified() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isVerified() && (
+        request.auth.token.email == 'thameemahmed087@gmail.com' ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    // Entity validation helpers
+    function isValidUser(data) {
+      return data.keys().hasAll(['id', 'name', 'email', 'role', 'department', 'codeNumber']) &&
+             data.keys().hasOnly(['id', 'name', 'email', 'role', 'department', 'codeNumber', 'sectionId', 'semester', 'phone', 'createdAt', 'updatedAt']) &&
+             data.id is string && data.id.size() <= 128 &&
+             data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
+             data.email is string && data.email.size() <= 120 &&
+             data.role in ['student', 'faculty', 'hod'] &&
+             data.department is string && data.department.size() <= 80 &&
+             data.codeNumber is string && data.codeNumber.size() <= 50;
+    }
+
+    function isValidComplaint(data) {
+      return data.keys().hasAll(['id', 'studentId', 'category', 'description', 'status', 'isAnonymous']) &&
+             data.keys().hasOnly(['id', 'studentId', 'studentName', 'title', 'category', 'description', 'status', 'isAnonymous', 'resolutionNote', 'createdAt']) &&
+             data.id is string && data.id.size() <= 128 &&
+             data.studentId == request.auth.uid &&
+             data.category is string && data.category.size() <= 80 &&
+             data.description is string && data.description.size() <= 2000 &&
+             data.status in ['open', 'in_progress', 'resolved'] &&
+             data.isAnonymous is bool;
+    }
+
+    function isValidFeedback(data) {
+      return data.keys().hasAll(['id', 'studentId', 'facultyId', 'subjectId', 'comments']) &&
+             data.keys().hasOnly(['id', 'studentId', 'facultyId', 'subjectId', 'ratingClarity', 'ratingPunctuality', 'ratingKnowledge', 'ratingFairness', 'comments', 'createdAt']) &&
+             data.id is string && data.id.size() <= 128 &&
+             data.studentId == request.auth.uid &&
+             data.facultyId is string && data.facultyId.size() <= 128 &&
+             data.subjectId is string && data.subjectId.size() <= 128 &&
+             data.comments is string && data.comments.size() <= 1000;
+    }
+
+    function isValidAnnouncement(data) {
+      return data.keys().hasAll(['id', 'title', 'content', 'category', 'authorId', 'authorName']) &&
+             data.keys().hasOnly(['id', 'title', 'content', 'category', 'authorId', 'authorName', 'isImportant', 'createdAt']) &&
+             data.id is string && data.id.size() <= 128 &&
+             data.title is string && data.title.size() <= 200 &&
+             data.content is string && data.content.size() <= 5000 &&
+             data.category is string && data.category.size() <= 80 &&
+             data.authorId == request.auth.uid;
+    }
+
+    function isValidAttendance(data) {
+      return data.keys().hasAll(['id', 'studentId', 'subjectId', 'sectionId', 'date', 'status', 'markedBy']) &&
+             data.keys().hasOnly(['id', 'studentId', 'subjectId', 'sectionId', 'date', 'status', 'markedBy', 'remarks', 'createdAt']) &&
+             data.id is string && data.id.size() <= 128 &&
+             data.studentId is string && data.studentId.size() <= 128 &&
+             data.subjectId is string && data.subjectId.size() <= 128 &&
+             data.status in ['present', 'absent', 'late', 'excused'] &&
+             data.markedBy == request.auth.uid;
+    }
+
+    // Collections
+    match /users/{userId} {
+      allow get: if isValidId(userId) && (isOwner(userId) || isAdmin());
+      allow list: if isAdmin();
+      allow create: if isValidId(userId) && isOwner(userId) && isValidUser(incoming()) && (incoming().role != 'hod' || isAdmin());
+      allow update: if isValidId(userId) && isOwner(userId) && isValidUser(incoming()) &&
+                    incoming().id == existing().id &&
+                    incoming().email == existing().email &&
+                    (incoming().role == existing().role || isAdmin()) &&
+                    incoming().diff(existing()).affectedKeys().hasOnly(['name', 'phone', 'department', 'codeNumber', 'sectionId', 'semester', 'updatedAt']);
+      allow delete: if isValidId(userId) && isAdmin();
+    }
+
+    match /attendanceRecords/{recordId} {
+      allow get: if isValidId(recordId) && isVerified() && (resource.data.studentId == request.auth.uid || isAdmin());
+      allow list: if isVerified() && (resource.data.studentId == request.auth.uid || isAdmin());
+      allow create: if isValidId(recordId) && isAdmin() && isValidAttendance(incoming());
+      allow update: if isValidId(recordId) && isAdmin() && isValidAttendance(incoming()) &&
+                    incoming().diff(existing()).affectedKeys().hasOnly(['status', 'remarks']);
+      allow delete: if isValidId(recordId) && isAdmin();
+    }
+
+    match /complaints/{complaintId} {
+      allow get: if isValidId(complaintId) && isVerified() && (resource.data.studentId == request.auth.uid || isAdmin());
+      allow list: if isVerified() && (resource.data.studentId == request.auth.uid || isAdmin());
+      allow create: if isValidId(complaintId) && isVerified() && isValidComplaint(incoming());
+      allow update: if isValidId(complaintId) && isVerified() && (
+        (resource.data.studentId == request.auth.uid && incoming().diff(existing()).affectedKeys().hasOnly(['description', 'title'])) ||
+        (isAdmin() && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'resolutionNote']))
+      );
+      allow delete: if isValidId(complaintId) && (isAdmin() || (isVerified() && resource.data.studentId == request.auth.uid && resource.data.status == 'open'));
+    }
+
+    match /feedback/{feedbackId} {
+      allow get: if isValidId(feedbackId) && isVerified() && (resource.data.studentId == request.auth.uid || isAdmin());
+      allow list: if isAdmin();
+      allow create: if isValidId(feedbackId) && isVerified() && isValidFeedback(incoming());
+      allow update, delete: if isValidId(feedbackId) && isAdmin();
+    }
+
+    match /announcements/{announcementId} {
+      allow read: if isVerified();
+      allow create: if isValidId(announcementId) && isAdmin() && isValidAnnouncement(incoming());
+      allow update: if isValidId(announcementId) && isAdmin() && isValidAnnouncement(incoming()) &&
+                    incoming().diff(existing()).affectedKeys().hasOnly(['title', 'content', 'category', 'isImportant']);
+      allow delete: if isValidId(announcementId) && isAdmin();
+    }
+
+    match /submissions/{submissionId} {
+      allow get: if isValidId(submissionId) && isVerified() && (resource.data.studentId == request.auth.uid || isAdmin());
+      allow list: if isVerified() && (resource.data.studentId == request.auth.uid || isAdmin());
+      allow create: if isValidId(submissionId) && isVerified() && incoming().studentId == request.auth.uid;
+      allow update: if isValidId(submissionId) && isAdmin();
+      allow delete: if isValidId(submissionId) && isAdmin();
+    }
+
+    match /admins/{adminId} {
+      allow read, write: if isValidId(adminId) && isAdmin();
+    }
+
+    // Health check collection for testConnection()
+    match /test/{docId} {
+      allow read: if true;
+    }
+  }
+}
